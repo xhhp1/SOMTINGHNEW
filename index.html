@@ -14,14 +14,6 @@
     transition: 0.3s;
   }
 
-  /* 🌙 الوضع الداكن */
-  body.dark {
-    background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
-                url('https://i.postimg.cc/jSjMRqm1/Screenshot-2026-02-14-052319.png');
-    background-size: cover;
-    background-position: center;
-    color: white;
-  }
 
   /* ☀️ الوضع الفاتح */
   body.light {
@@ -122,8 +114,6 @@
 
 <div class="container">
 
-<button class="toggle-btn" onclick="toggleMode()">🌙 / ☀️ تغيير الوضع</button>
-
 <h1>📊 مقارنة التقارير</h1>
 
 <label>تقرير المشرف:</label>
@@ -192,7 +182,7 @@ function compareMentions() {
 
   let resultHTML = '';
 
-  resultHTML += `<p class="shared">منشنات مشتركة ✅: ${shared.join(', ') || 'لا يوجد'}</p>`;
+  resultHTML += `<p class="shared">منشن  ✅: ${shared.join(', ') || 'لا يوجد'}</p>`;
   resultHTML += `<p class="only-supervisor">منشنات في المشرف ❌: ${onlySupervisor.join(', ') || 'لا يوجد'}</p>`;
   resultHTML += `<p class="only-technical">منشنات في الفني ❌: ${onlyTechnical.join(', ') || 'لا يوجد'}</p>`;
 
