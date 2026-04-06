@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>مقارنة المنشنات والكودات</title>
+
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    direction: rtl;
+    transition: 0.3s;
+  }
+
+  /* 🌙 الوضع الداكن */
+  body.dark {
+    background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+                url('https://i.postimg.cc/jSjMRqm1/Screenshot-2026-02-14-052319.png');
+    background-size: cover;
+    background-position: center;
+    color: white;
+  }
+
+  /* ☀️ الوضع الفاتح */
+  body.light {
+    background: #f5f5f5;
+    color: #222;
+  }
+
+  .container {
+    max-width: 700px;
+    margin: auto;
+    padding: 20px;
+    border-radius: 20px;
+    transition: 0.3s;
+  }
+
+  /* زجاجي داكن */
+  body.dark .container {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
+  }
+
+  /* زجاجي فاتح */
+  body.light .container {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+  }
+
+  textarea {
+    width: 100%;
+    height: 100px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+    padding: 10px;
+    border: none;
+    outline: none;
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: 0.3s;
+  }
+
+  .main-btn {
+    background: linear-gradient(45deg, #00c853, #69f0ae);
+    color: black;
+  }
+
+  .main-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px #00ff88;
+  }
+
+  .toggle-btn {
+    margin-bottom: 10px;
+    background: #444;
+    color: white;
+  }
+
+  body.light .toggle-btn {
+    background: #ddd;
+    color: black;
+  }
+
+  #results {
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 12px;
+  }
+
+  body.dark #results {
+    background: rgba(0,0,0,0.4);
+  }
+
+  body.light #results {
+    background: rgba(255,255,255,0.8);
+  }
+
+  .shared { color: #00c853; font-weight: bold; }
+  .only-supervisor { color: #d50000; font-weight: bold; }
+  .only-technical { color: #ff6d00; font-weight: bold; }
+  .duplicate { color: #2962ff; font-weight: bold; }
+
+  h1, h2, label {
+    text-align: center;
+  }
+</style>
+</head>
+
+<body class="dark">
+
+<div class="container">
+
+<button class="toggle-btn" onclick="toggleMode()">🌙 / ☀️ تغيير الوضع</button>
+
+<h1>📊 مقارنة التقارير</h1>
+
+<label>تقرير المشرف:</label>
+<textarea id="supervisorText"></textarea>
+
+<label>تقرير الفني:</label>
+<textarea id="technicalText"></textarea>
+
+<button class="main-btn" onclick="compareMentions()">🚀 قارن الآن</button>
+
+<h2>النتائج:</h2>
+<div id="results"></div>
+
+</div>
+
+<script>
+function toggleMode() {
+  const body = document.body;
+
+  if (body.classList.contains('dark')) {
+    body.classList.remove('dark');
+    body.classList.add('light');
+    localStorage.setItem('mode', 'light');
+  } else {
+    body.classList.remove('light');
+    body.classList.add('dark');
+    localStorage.setItem('mode', 'dark');
+  }
+}
+
+// حفظ الوضع
+window.onload = () => {
+  const savedMode = localStorage.getItem('mode');
+  if (savedMode) {
+    document.body.className = savedMode;
+  }
+};
+
+function compareMentions() {
+  const supText = document.getElementById('supervisorText').value;
+  const techText = document.getElementById('technicalText').value;
+
+  const mentionRegex = /<@[\d]+>/g;
+  const supMentions = supText.match(mentionRegex) || [];
+  const techMentions = techText.match(mentionRegex) || [];
+
+  const uniqueSup = [...new Set(supMentions)];
+  const uniqueTech = [...new Set(techMentions)];
+
+  const shared = uniqueSup.filter(m => uniqueTech.includes(m));
+  const onlySupervisor = uniqueSup.filter(m => !uniqueTech.includes(m));
+  const onlyTechnical = uniqueTech.filter(m => !uniqueSup.includes(m));
+
+  const codeRegex = /\bG-\d{3,}\b/g;
+  const supCodes = supText.match(codeRegex) || [];
+  const techCodes = techText.match(codeRegex) || [];
+
+  function findDuplicates(arr) {
+    const counts = {};
+    arr.forEach(c => counts[c] = (counts[c] || 0) + 1);
+    return Object.keys(counts).filter(k => counts[k] > 1);
+  }
+
+  const supDuplicates = findDuplicates(supCodes);
+  const techDuplicates = findDuplicates(techCodes);
+
+  let resultHTML = '';
+
+  resultHTML += `<p class="shared">منشنات مشتركة ✅: ${shared.join(', ') || 'لا يوجد'}</p>`;
+  resultHTML += `<p class="only-supervisor">منشنات في المشرف ❌: ${onlySupervisor.join(', ') || 'لا يوجد'}</p>`;
+  resultHTML += `<p class="only-technical">منشنات في الفني ❌: ${onlyTechnical.join(', ') || 'لا يوجد'}</p>`;
+
+  resultHTML += `<p class="duplicate">أكواد مكررة في المشرف 🔵: ${supDuplicates.join(', ') || 'لا يوجد'}</p>`;
+  resultHTML += `<p class="duplicate">أكواد مكررة في الفني 🔵: ${techDuplicates.join(', ') || 'لا يوجد'}</p>`;
+
+  document.getElementById('results').innerHTML = resultHTML;
+}
+</script>
+
+</body>
+</html>
