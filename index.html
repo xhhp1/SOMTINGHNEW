@@ -42,7 +42,7 @@ body{
 }
 
 .container{
-  width:min(980px, 100%);
+  width:min(1180px, 100%);
   margin:0 auto;
   background:var(--panel-bg);
   border:1px solid rgba(224,202,81,0.18);
@@ -91,7 +91,7 @@ label{
 
 textarea{
   width:100%;
-  min-height:280px;
+  min-height:300px;
   resize:vertical;
   border:none;
   outline:none;
@@ -187,8 +187,9 @@ button:hover{
 }
 
 .result-box li{
-  margin:6px 0;
+  margin:8px 0;
   word-break:break-word;
+  line-height:1.8;
 }
 
 .shared h3{color:var(--ok)}
@@ -196,6 +197,7 @@ button:hover{
 .only-technical h3{color:var(--orange)}
 .duplicate h3{color:var(--note)}
 .time-box h3{color:#9ee37d}
+.invalid h3{color:#ff8c69}
 
 .time-good{
   color:var(--ok);
@@ -234,6 +236,22 @@ button:hover{
   margin:2px 0;
 }
 
+.place{
+  color:#9fd3ff;
+  font-weight:700;
+}
+
+.badge{
+  display:inline-block;
+  margin:2px 0 0;
+  padding:2px 8px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(224,202,81,0.18);
+  color:#f4e8a4;
+  font-size:13px;
+}
+
 @media (max-width: 800px){
   .grid{
     grid-template-columns:1fr;
@@ -258,7 +276,7 @@ button:hover{
 <div class="app">
   <div class="container">
     <h1>📊 مقارنة التقارير</h1>
-    <p class="sub">يقارن المنشنات والأكواد المكررة، ويشيّك أيضًا على صحة الوقت بين تقرير المشرف وتقرير الفني.</p>
+    <p class="sub">يقارن المنشنات والأكواد، ويحدد مكان التكرار أو النقص أو الخطأ بالتفصيل.</p>
 
     <div class="grid">
       <div class="card">
@@ -281,7 +299,7 @@ button:hover{
       <h2 class="results-title">النتائج</h2>
       <div id="results"></div>
       <button class="copy-btn" onclick="copyResults()">📋 نسخ النتائج</button>
-      <div class="footer-note">التحقق الزمني يقارن نهاية تقرير المشرف مع بداية تقرير الفني، ويعرض أي خطأ واضح في الفترة الزمنية.</div>
+      <div class="footer-note">إذا كان الوقت متطابقًا فلن يتم عرض تنبيه خاص بالوقت.</div>
     </div>
   </div>
 </div>
@@ -289,12 +307,6 @@ button:hover{
 <script>
 function unique(arr){
   return [...new Set(arr)];
-}
-
-function findDuplicates(arr){
-  const counts = {};
-  arr.forEach(item => counts[item] = (counts[item] || 0) + 1);
-  return Object.keys(counts).filter(key => counts[key] > 1);
 }
 
 function escapeHtml(str){
@@ -306,11 +318,6 @@ function escapeHtml(str){
     .replaceAll("'", '&#039;');
 }
 
-function renderList(items){
-  if(!items.length) return '<div class="empty">لا يوجد</div>';
-  return `<ul>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
-}
-
 function normalizeArabicDigits(str){
   const arabicNums = '٠١٢٣٤٥٦٧٨٩';
   const englishNums = '0123456789';
@@ -319,8 +326,8 @@ function normalizeArabicDigits(str){
 
 function cleanText(str){
   return normalizeArabicDigits(str)
-    .replace(/\u200f|\u200e/g, '')
-    .replace(/\s+/g, ' ')
+    .replace(/[\u200f\u200e]/g, '')
+    .replace(/\r/g, '')
     .trim();
 }
 
@@ -365,37 +372,31 @@ function formatRange(range){
 }
 
 function extractSupervisorTime(text){
-  const t = cleanText(text);
+  const t = cleanText(text).replace(/\s+/g, ' ');
 
   const regex = /من\s*الساعة\s*\(?\s*(\d{1,2})\s*:\s*(\d{2})\s*([صم])\s*\)?\s*الى\s*الساعة\s*\(?\s*(\d{1,2})\s*:\s*(\d{2})\s*([صم])\s*\)?/i;
   const match = t.match(regex);
 
   if(!match) return null;
 
-  const start = parseTimeToMinutes(match[1], match[2], parseArabicMeridiem(match[3]));
-  const end = parseTimeToMinutes(match[4], match[5], parseArabicMeridiem(match[6]));
-
   return {
-    start,
-    end,
+    start: parseTimeToMinutes(match[1], match[2], parseArabicMeridiem(match[3])),
+    end: parseTimeToMinutes(match[4], match[5], parseArabicMeridiem(match[6])),
     raw: match[0]
   };
 }
 
 function extractTechnicalTime(text){
-  const t = cleanText(text);
+  const t = cleanText(text).replace(/\s+/g, ' ');
 
-  const regex = /من\s*الساعه\s*(\d{1,2})\s*:\s*(\d{2})\s*\(?\s*([صم])\s*\)?\s*حتى\s*الساعه\s*(\d{1,2})\s*:\s*(\d{2})\s*\(?\s*([صم])\s*\)?/i;
+  const regex = /من\s*الساعه\s*\(?\s*(\d{1,2})\s*:\s*(\d{2})\s*\)?\s*\(?\s*([صم])\s*\)?\s*حتى\s*الساعه\s*\(?\s*(\d{1,2})\s*:\s*(\d{2})\s*\)?\s*\(?\s*([صم])\s*\)?/i;
   const match = t.match(regex);
 
   if(!match) return null;
 
-  const start = parseTimeToMinutes(match[1], match[2], parseArabicMeridiem(match[3]));
-  const end = parseTimeToMinutes(match[4], match[5], parseArabicMeridiem(match[6]));
-
   return {
-    start,
-    end,
+    start: parseTimeToMinutes(match[1], match[2], parseArabicMeridiem(match[3])),
+    end: parseTimeToMinutes(match[4], match[5], parseArabicMeridiem(match[6])),
     raw: match[0]
   };
 }
@@ -432,6 +433,7 @@ function checkTimeMatch(supervisorRange, technicalRange){
   if(!supervisorRange || !technicalRange){
     return {
       ok:false,
+      silent:false,
       message:'تعذر التحقق من تطابق الوقت لأن أحد التقريرين لا يحتوي على وقت واضح.'
     };
   }
@@ -439,38 +441,187 @@ function checkTimeMatch(supervisorRange, technicalRange){
   if(supervisorRange.end === technicalRange.start){
     return {
       ok:true,
-      message:'الوقت متطابق: نهاية تقرير المشرف تساوي بداية تقرير الفني.'
+      silent:true,
+      message:''
     };
   }
 
   return {
     ok:false,
+    silent:false,
     message:`الوقت غير متطابق: نهاية تقرير المشرف هي ${minutesToArabicTime(supervisorRange.end)} بينما بداية تقرير الفني هي ${minutesToArabicTime(technicalRange.start)}.`
   };
+}
+
+function cleanupLine(line){
+  return cleanText(line)
+    .replace(/\*+/g, '')
+    .replace(/`+/g, '')
+    .replace(/ـ+/g, '')
+    .replace(/[()]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function looksLikeDivider(line){
+  return /^[\-\—\_ـ\s]+$/.test(line);
+}
+
+function detectSectionLabel(line, currentSection){
+  const raw = cleanupLine(line);
+  if(!raw || looksLikeDivider(raw)) return currentSection;
+
+  const lineWithoutMentions = raw.replace(/<@\d+>/g, '').trim();
+  const lineWithoutCodes = lineWithoutMentions.replace(/\b[A-Z]+-\d+\b/g, '').trim();
+
+  const colonMatch = lineWithoutCodes.match(/^(.{1,80}?)\s*[:：]\s*(.*)$/);
+  if(colonMatch){
+    const label = colonMatch[1].trim();
+    if(label) return label;
+  }
+
+  const isShortHeading =
+    !raw.includes('<@') &&
+    !/\b[A-Z]+-\d+\b/.test(raw) &&
+    raw.length <= 35;
+
+  if(isShortHeading){
+    return raw;
+  }
+
+  return currentSection || 'غير محدد';
+}
+
+function analyzeReport(text){
+  const lines = cleanText(text).split('\n');
+  let currentSection = 'غير محدد';
+
+  const mentionMap = {};
+  const codeMap = {};
+  const invalidCodes = [];
+
+  const mentionRegex = /<@\d+>/g;
+  const allCodeRegex = /\b[A-Z]+-\d+\b/g;
+
+  for(const originalLine of lines){
+    const line = originalLine.trim();
+    if(!line) continue;
+
+    currentSection = detectSectionLabel(line, currentSection);
+    const place = currentSection || 'غير محدد';
+
+    const mentions = line.match(mentionRegex) || [];
+    const allCodes = line.match(allCodeRegex) || [];
+
+    mentions.forEach(m => {
+      if(!mentionMap[m]) mentionMap[m] = [];
+      mentionMap[m].push(place);
+    });
+
+    allCodes.forEach(code => {
+      if(/^G-\d{3,}$/i.test(code)){
+        if(!codeMap[code]) codeMap[code] = [];
+        codeMap[code].push(place);
+      } else {
+        invalidCodes.push({ code, place });
+      }
+    });
+  }
+
+  return {
+    mentionMap,
+    codeMap,
+    invalidCodes
+  };
+}
+
+function uniquePlaces(arr){
+  return unique((arr || []).map(x => cleanupLine(x)).filter(Boolean));
+}
+
+function buildOnlyItems(map, titlePrefix){
+  const items = Object.entries(map);
+  if(!items.length) return '<div class="empty">لا يوجد</div>';
+
+  return `
+    <ul>
+      ${items.map(([key, places]) => `
+        <li>
+          <span class="code-like">${escapeHtml(key)}</span>
+          — ${escapeHtml(titlePrefix)}
+          <span class="place">${escapeHtml(uniquePlaces(places).join(' / '))}</span>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+function buildDuplicateItems(map, reportName){
+  const duplicatedEntries = Object.entries(map)
+    .filter(([, places]) => (places || []).length > 1);
+
+  if(!duplicatedEntries.length) return '<div class="empty">لا يوجد</div>';
+
+  return `
+    <ul>
+      ${duplicatedEntries.map(([key, places]) => `
+        <li>
+          <span class="code-like">${escapeHtml(key)}</span>
+          — مكرر في ${escapeHtml(reportName)}
+          <span class="place">${escapeHtml(uniquePlaces(places).join(' / '))}</span>
+          <div class="badge">عدد التكرارات: ${places.length}</div>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+function buildInvalidCodeItems(items, reportName){
+  if(!items.length) return '<div class="empty">لا يوجد</div>';
+
+  return `
+    <ul>
+      ${items.map(item => `
+        <li>
+          <span class="code-like">${escapeHtml(item.code)}</span>
+          — كود غير صحيح في ${escapeHtml(reportName)}
+          <span class="place">${escapeHtml(item.place)}</span>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+function buildSharedItems(sharedMentions){
+  if(!sharedMentions.length) return '<div class="empty">لا يوجد</div>';
+  return `<ul>${sharedMentions.map(m => `<li><span class="code-like">${escapeHtml(m)}</span></li>`).join('')}</ul>`;
 }
 
 function compareReports(){
   const supText = document.getElementById('supervisorText').value || '';
   const techText = document.getElementById('technicalText').value || '';
 
-  const mentionRegex = /<@\d+>/g;
-  const codeRegex = /\bG-\d{3,}\b/g;
+  const supervisor = analyzeReport(supText);
+  const technical = analyzeReport(techText);
 
-  const supMentions = supText.match(mentionRegex) || [];
-  const techMentions = techText.match(mentionRegex) || [];
+  const supMentions = Object.keys(supervisor.mentionMap);
+  const techMentions = Object.keys(technical.mentionMap);
 
-  const uniqueSupMentions = unique(supMentions);
-  const uniqueTechMentions = unique(techMentions);
+  const sharedMentions = supMentions.filter(m => techMentions.includes(m));
+  const onlySupervisorMap = {};
+  const onlyTechnicalMap = {};
 
-  const sharedMentions = uniqueSupMentions.filter(m => uniqueTechMentions.includes(m));
-  const onlySupervisor = uniqueSupMentions.filter(m => !uniqueTechMentions.includes(m));
-  const onlyTechnical = uniqueTechMentions.filter(m => !uniqueSupMentions.includes(m));
+  supMentions.forEach(m => {
+    if(!techMentions.includes(m)){
+      onlySupervisorMap[m] = supervisor.mentionMap[m];
+    }
+  });
 
-  const supCodes = supText.match(codeRegex) || [];
-  const techCodes = techText.match(codeRegex) || [];
-
-  const supDuplicates = findDuplicates(supCodes);
-  const techDuplicates = findDuplicates(techCodes);
+  techMentions.forEach(m => {
+    if(!supMentions.includes(m)){
+      onlyTechnicalMap[m] = technical.mentionMap[m];
+    }
+  });
 
   const supervisorTime = extractSupervisorTime(supText);
   const technicalTime = extractTechnicalTime(techText);
@@ -479,47 +630,87 @@ function compareReports(){
   const technicalTimeCheck = validateTimeRange('تقرير الفني', technicalTime);
   const timeMatchCheck = checkTimeMatch(supervisorTime, technicalTime);
 
-  const resultsHTML = `
+  const timeParts = [];
+
+  if(!supervisorTimeCheck.valid){
+    timeParts.push(`
+      <div class="time-bad" style="margin-top:8px;">
+        ${escapeHtml(supervisorTimeCheck.message)}
+      </div>
+    `);
+  }
+
+  if(!technicalTimeCheck.valid){
+    timeParts.push(`
+      <div class="time-bad" style="margin-top:8px;">
+        ${escapeHtml(technicalTimeCheck.message)}
+      </div>
+    `);
+  }
+
+  if(supervisorTimeCheck.valid && technicalTimeCheck.valid && !timeMatchCheck.silent){
+    timeParts.push(`
+      <div class="time-bad" style="margin-top:8px;">
+        ${escapeHtml(timeMatchCheck.message)}
+      </div>
+    `);
+  }
+
+  const timeHTML = timeParts.length ? `
     <div class="result-box time-box">
       <h3>⏰ التحقق من الوقت</h3>
       <div class="time-info"><strong>وقت تقرير المشرف:</strong> <span class="code-like">${escapeHtml(formatRange(supervisorTime))}</span></div>
-      <div class="${supervisorTimeCheck.valid ? 'time-good' : 'time-bad'}" style="margin-top:8px;">
-        ${escapeHtml(supervisorTimeCheck.message)}
-      </div>
-
-      <div class="time-info" style="margin-top:14px;"><strong>وقت تقرير الفني:</strong> <span class="code-like">${escapeHtml(formatRange(technicalTime))}</span></div>
-      <div class="${technicalTimeCheck.valid ? 'time-good' : 'time-bad'}" style="margin-top:8px;">
-        ${escapeHtml(technicalTimeCheck.message)}
-      </div>
-
-      <div class="${timeMatchCheck.ok ? 'time-good' : 'time-bad'}" style="margin-top:14px;">
-        ${escapeHtml(timeMatchCheck.message)}
-      </div>
+      <div class="time-info" style="margin-top:10px;"><strong>وقت تقرير الفني:</strong> <span class="code-like">${escapeHtml(formatRange(technicalTime))}</span></div>
+      ${timeParts.join('')}
     </div>
+  ` : '';
+
+  const resultsHTML = `
+    ${timeHTML}
 
     <div class="result-box shared">
       <h3>✅ المنشنات المشتركة</h3>
-      ${renderList(sharedMentions)}
+      ${buildSharedItems(sharedMentions)}
     </div>
 
     <div class="result-box only-supervisor">
       <h3>❌ منشنات موجودة في تقرير المشرف فقط</h3>
-      ${renderList(onlySupervisor)}
+      ${buildOnlyItems(onlySupervisorMap, 'موجود فقط في تقرير المشرف عند')}
     </div>
 
     <div class="result-box only-technical">
       <h3>❌ منشنات موجودة في تقرير الفني فقط</h3>
-      ${renderList(onlyTechnical)}
+      ${buildOnlyItems(onlyTechnicalMap, 'موجود فقط في تقرير الفني عند')}
+    </div>
+
+    <div class="result-box duplicate">
+      <h3>🔁 منشنات مكررة في تقرير المشرف</h3>
+      ${buildDuplicateItems(supervisor.mentionMap, 'تقرير المشرف')}
+    </div>
+
+    <div class="result-box duplicate">
+      <h3>🔁 منشنات مكررة في تقرير الفني</h3>
+      ${buildDuplicateItems(technical.mentionMap, 'تقرير الفني')}
     </div>
 
     <div class="result-box duplicate">
       <h3>🔵 الأكواد المكررة في تقرير المشرف</h3>
-      ${renderList(supDuplicates)}
+      ${buildDuplicateItems(supervisor.codeMap, 'تقرير المشرف')}
     </div>
 
     <div class="result-box duplicate">
       <h3>🔵 الأكواد المكررة في تقرير الفني</h3>
-      ${renderList(techDuplicates)}
+      ${buildDuplicateItems(technical.codeMap, 'تقرير الفني')}
+    </div>
+
+    <div class="result-box invalid">
+      <h3>⚠️ الأكواد الخاطئة في تقرير المشرف</h3>
+      ${buildInvalidCodeItems(supervisor.invalidCodes, 'تقرير المشرف')}
+    </div>
+
+    <div class="result-box invalid">
+      <h3>⚠️ الأكواد الخاطئة في تقرير الفني</h3>
+      ${buildInvalidCodeItems(technical.invalidCodes, 'تقرير الفني')}
     </div>
   `;
 
